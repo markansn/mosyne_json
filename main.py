@@ -1,6 +1,6 @@
+from __future__ import annotations
 from typing import List, Set, TypedDict
 from datetime import datetime
-from __future__ import annotations
 class BaseTask(TypedDict):
     content: str
     start_ts: str
@@ -12,8 +12,8 @@ class BaseTask(TypedDict):
 
 
 def create_task():
-    new_task = BaseTask()
-    print(new_task)
+    for value in BaseTask.items:
+        print(value)
 
 
 
