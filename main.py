@@ -8,6 +8,7 @@ import os
 from glob import glob
 import pytz
 import pandas as pd 
+import sqlite3
 FILES_LOC = "files/"
 class BaseTask(TypedDict):
     content: str
@@ -92,17 +93,27 @@ def save_task(task: BaseTask):
     
 
 def load_tasks():
-    tasks = []
+    tasks = set()
     for file_path in glob(f"{FILES_LOC}/*.json"):
         print("loading", file_path)
         with open(file_path, "r") as f:
             d = json.load(f)
         d["created_ts"] = datetime.fromisoformat(d["created_ts"])
-        tasks.append(d)  
-    return pd.DataFrame(tasks)
+        tasks.add(d)  
+    return tasks
+
+def generate_sql_db(task: BaseTask):
+    print("Generating db")
+    conn = sqlite3.connect(':memory:')
+    cur = conn.cursor()
+    cur.execute("create table tasks(content, start_ts, end_ts, tags, created_ts, modified_ts, completed)")
+    cur.execute(f"insert into test values ({task['content']}, {task['start_ts']}, {task['end_ts']}, {task['tags']}, {task['created_ts']}, {task['modified_ts']}, {task['completed']})")
+    result = cur.execute("SELECT * from test")
+    print(result.fetchone())
 
 def cli():
-    task_df = load_tasks()
+    task_set = load_tasks()
+    
     while True:
         line = input_with_mosyne_tag().strip()
         if line == "new":
@@ -113,4 +124,5 @@ def cli():
             with pd.option_context('display.max_rows', None, 'display.max_columns', None): 
                 print(task_df.filter(items=["content, "]))
 
-cli()
+# cli()
+generate_sql_db(create_task())
