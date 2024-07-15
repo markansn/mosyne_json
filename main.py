@@ -9,7 +9,8 @@ from glob import glob
 import pytz
 import pandas as pd 
 import sqlite3
-FILES_LOC = "files/"
+FILES_LOC = "tasks/"
+
 class BaseTask(TypedDict):
     content: str
     start_ts: Optional[datetime.datetime]
@@ -93,13 +94,13 @@ def save_task(task: BaseTask):
     
 
 def load_tasks():
-    tasks = set()
+    tasks = list()
     for file_path in glob(f"{FILES_LOC}/*.json"):
         print("loading", file_path)
         with open(file_path, "r") as f:
             d = json.load(f)
         d["created_ts"] = datetime.fromisoformat(d["created_ts"])
-        tasks.add(d)  
+        tasks.append(d)  
     return tasks
 
 def generate_sql_db(task: BaseTask):
@@ -107,22 +108,55 @@ def generate_sql_db(task: BaseTask):
     conn = sqlite3.connect(':memory:')
     cur = conn.cursor()
     cur.execute("create table tasks(content, start_ts, end_ts, tags, created_ts, modified_ts, completed)")
+    print(f"insert into test values ({task['content']}, {task['start_ts']}, {task['end_ts']}, {task['tags']}, {task['created_ts']}, {task['modified_ts']}, {task['completed']})")
     cur.execute(f"insert into test values ({task['content']}, {task['start_ts']}, {task['end_ts']}, {task['tags']}, {task['created_ts']}, {task['modified_ts']}, {task['completed']})")
     result = cur.execute("SELECT * from test")
     print(result.fetchone())
 
+def filter_with_eval(task_set: list[BaseTask]):
+    filter_str = get_input("filter")
+    result_list = []
+    for task in task_set:
+        content = task["content"]
+        start_ts = task["start_ts"]
+        end_ts = task["end_ts"]
+        tags = task["tags"]
+        created_ts = task["created_ts"]
+        modified_ts = task["modified_ts"]
+        completed = task["completed"]
+        try:
+            if completed == False and eval(filter_str):
+                result_list.append(task)
+        except Exception:
+            continue
+    return result_list 
+
+
+def show_with_dataframe(task_set: list[BaseTask]):
+    with pd.option_context('display.max_rows', None, 'display.max_columns', None): 
+        print(pd.DataFrame(task_set))
 def cli():
     task_set = load_tasks()
     
     while True:
-        line = input_with_mosyne_tag().strip()
-        if line == "new":
-            task = create_task()
-            print(f"created new task: {task}")
-            save_task(task)
-        if line == "show":
-            with pd.option_context('display.max_rows', None, 'display.max_columns', None): 
-                print(task_df.filter(items=["content, "]))
+        try:
+            line = input_with_mosyne_tag().strip()
+            if line == "new":
+                task = create_task()
+                print(f"created new task: {task}")
+                save_task(task)
+                task_set.append(task)
+            if line == "show":
+                show_with_dataframe(task_set)
+            if line == "exit" or line == "e":
+                exit(0)
+            if line == "filter":
+                result = filter_with_eval(task_set)
+                show_with_dataframe(result)
+        except KeyboardInterrupt:
+            print("\n'exit' to quit")
+            continue
 
-# cli()
-generate_sql_db(create_task())
+cli()
+   
+# generate_sql_db(create_task())
